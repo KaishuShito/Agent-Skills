@@ -1,6 +1,6 @@
 # Agent-Skills
 
-Claude Code / Codex 向けエージェントスキルのリポジトリ。
+AGI Cockpit のマスターエージェント（統括Chief）向けエージェントスキルのリポジトリ。
 
 ## 収録スキル
 
