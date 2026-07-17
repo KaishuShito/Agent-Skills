@@ -1,0 +1,4 @@
+interface:
+  display_name: "Chief Work Report"
+  short_description: "Summarize work into Vault notes and Chief updates"
+  default_prompt: "Use $chief-work-report to save this work summary in the right Obsidian folder and share it with the pinned Chief thread."

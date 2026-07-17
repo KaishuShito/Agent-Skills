@@ -9,6 +9,7 @@ AGI Cockpit のマスターエージェント（統括Chief）向けエージェ
 | [cockpit-master-chief](cockpit-master-chief/SKILL.md) | AGI Cockpit の統括Chiefセッションとしてワーカータスク群を運用する |
 | [project-maintainer-orchestrator](project-maintainer-orchestrator/SKILL.md) | プロジェクトの親メンテナー/オーケストレーターとしてワーカー・レビュアーを統括する |
 | [chief-handover](chief-handover/SKILL.md) | 新Chiefセッションへの引き継ぎ（レーン再同期・report-back先の付け替え） |
+| [chief-work-report](chief-work-report/SKILL.md) | 完了した作業をObsidian/team-vaultの報告Markdownに残し、Chiefスレッドへ要約を共有する |
 
 ## ローカル運用
 
