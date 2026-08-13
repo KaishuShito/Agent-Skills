@@ -34,7 +34,7 @@ env -u AGI_COCKPIT_TASK_ID -u AGI_COCKPIT_CONTEXT_TASK_ID -u AGI_COCKPIT_CONTEXT
 cockpit task pin <new-id>
 ```
 
-This is a v4.49.0 workaround. An official top-level creation flag is proposed in [tempi-tech/AGICockpit#301](https://github.com/tempi-tech/AGICockpit/issues/301).
+This is a v4.49.0 workaround; a future Cockpit release may provide an official flag.
 
 Create a short one-shot task normally. It may remain nested under the caller:
 

@@ -29,7 +29,7 @@ Cockpit v4.49.0 removed report-back and `task send --parent-task-id`. A handover
    cockpit task pin <new-id>
    ```
 
-   This is a v4.49.0 workaround. An official top-level creation flag is proposed in [tempi-tech/AGICockpit#301](https://github.com/tempi-tech/AGICockpit/issues/301).
+   This is a v4.49.0 workaround; a future Cockpit release may provide an official flag.
 4. Stop accepting new work after the successor has been created. Do not complete or remove the outgoing task without explicit authorization.
 
 ## Incoming Chief
