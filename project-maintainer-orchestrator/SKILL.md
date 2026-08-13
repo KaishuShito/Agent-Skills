@@ -1,114 +1,74 @@
 ---
 name: project-maintainer-orchestrator
-description: Use when this session (Fable, GPT-5.6, or another frontier-model orchestrator, i.e. the 統括Chief or a プロジェクトLead — Claude Code or Codex) should act as the parent maintainer/orchestrator for a project, coordinating worker and reviewer agents (Claude subagents, Workflows, Codex/gpt-5.6 sessions) across repo, product, docs, QA, deploy, or operations tasks. Starts with read-only state discovery, protects project-specific constraints, delegates narrowly scoped work to the cheapest capable model, checks worker progress on a heartbeat, routes completed work to independent review, and reports merge/deploy/readiness status without doing unsafe production or account actions. Triggers on "プロジェクトを統括して", "メンテナーとして進めて", "orchestrate this project", "act as maintainer".
+description: Use when this session should act as the parent maintainer or project Lead, coordinating worker and reviewer tasks across code, product, docs, QA, deploy, or operations work. Starts with read-only discovery, protects project constraints, delegates narrow tasks, polls task reports, routes completed work to independent review, and reports readiness without unsafe production or account actions. Triggers on "プロジェクトを統括して", "メンテナーとして進めて", "orchestrate this project", or "act as maintainer".
 ---
 
 # Project Maintainer Orchestrator
 
-Use this skill when this session — Fable, GPT-5.6, or another frontier-model orchestrator (統括Chief or プロジェクトLead) — should be the parent maintainer for a project, not the primary implementer. The orchestrator owns context, scope, safety, model routing, delegation, review routing, and status reporting. Workers own focused execution.
+Use this skill when a session should maintain and coordinate a project rather than perform all implementation itself. The orchestrator owns context, scope, safety, delegation, review routing, and status reporting. Workers own focused execution.
 
-The core economics: the orchestrator model is the scarcest, smartest resource in the fleet. Spend orchestrator tokens on judgment — grounding, task design, blocker triage, review verdicts, and reporting. Spend delegate tokens on everything else. (When the orchestrator itself is gpt-5.6, delegation still pays: workers keep the orchestrator context free for judgment.)
+## Operating role
 
-## Operating Role
+- Keep repository, account, branch, production, and approval boundaries visible.
+- Delegate one concrete requirement per worker.
+- Use an independent reviewer before readiness claims for user-facing, production, data, or shared-repository changes.
+- Keep unrelated cleanup and speculative improvements out of the current task.
+- Do not silently mutate production, accounts, billing, external messaging, or secrets.
 
-- Act as the project steward and traffic controller. Stay at high effort; do not switch yourself to xhigh/max for orchestration work.
-- Keep the project-specific context, account boundaries, branch/worktree facts, production risks, and human approval gates visible.
-- Delegate focused work to worker agents. Never implement inline what a worker can do — exception: trivial edits where writing the task packet costs more than the edit.
-- Route completed work to an independent reviewer before merge/deploy/readiness claims.
-- Prefer one requirement per worker/PR. Split adjacent improvements into later tasks.
-- Do not silently mutate production, accounts, CMS data, billing, external messaging, or secrets.
+## Worker routing
 
-## Model Routing
+- Follow the repository or installation's model-routing policy when one exists. Do not embed personal cost rankings in a public skill.
+- Match capability to the task: strong reasoning for architecture or review, reliable coding and verification for implementation, and lighter workers for bounded mechanical work.
+- Escalate after repeated failure instead of resending the same packet unchanged.
+- Prefer Cockpit tasks for substantial delegation:
 
-Follow the "Picking the right models for workflows and subagents" section in `~/.claude/CLAUDE.md`. Summary for this skill's worker types:
+  ```bash
+  cockpit task create --instruction "<packet>" --directory <repo> --agent-type <agent-type>
+  ```
 
-| Worker type | Default model | Mechanism |
-|---|---|---|
-| Discovery / codebase analysis | gpt-5.6 (read-only) or Explore agent | Cockpit task (`--agent-type codex`), `codex exec -s read-only` for quick sweeps, or Agent tool |
-| Implementation (well-spec'd) | gpt-5.6 | Cockpit task (`--agent-type codex`, `--worktree` for isolation); `codex:codex-rescue` inside workflows |
-| Implementation (taste-sensitive: UI, copy, API design) | opus-4.8 or fable-5 | Agent/Workflow `model` parameter, or Cockpit task (`--agent-type claude`) |
-| QA / computer use / browser verification | gpt-5.6 | Codex via Cockpit task — it is notably better and cheaper at computer use |
-| Review of plans/implementations | fable-5 or opus-4.8 (+ optional gpt-5.6 second opinion) | Agent tool; `codex review` or delegator Code Reviewer for the extra perspective |
-| Docs / reports / mechanical sweeps | sonnet-5 | Agent/Workflow `model` parameter |
+- When acting as a Lead, create workers with `--parent-task-id <lead-task-id>` so the UI hierarchy matches the command chain. Resolve the Lead ID with `cockpit task current`; do not use the Master Chief ID.
+- Every delegate starts without this session's context. The first packet must be self-contained. Follow-ups to the same live task may contain only the delta.
 
-Routing rules:
+Cockpit v4.49.0 removed `task create --report-back`, `task send --parent-task-id`, and the automatic report-back mechanism. `--parent-task-id` remains valid on `task create` for UI nesting only.
 
-- Defaults, not limits. If a cheap model's output misses the bar, redo with a smarter model without asking. Judge the output, not the price tag.
-- Never use Haiku.
-- **Prefer Cockpit tasks for substantial delegation** (use the `/cockpit` skill): `cockpit task create --instruction "<packet>" --directory <repo> --agent-type codex` (or `claude`). Workers become visible, resumable, user-inspectable tasks — the right default for an orchestrator. Monitor with `cockpit task list` / `cockpit task get <id>`, answer worker questions with `cockpit task send <id> --text "..."`, isolate parallel implementation with `--worktree <branch>`.
-- Every delegate starts blind to this session's context. The initial packet must be fully self-contained (context, scope, constraints, output format) — the templates below satisfy this. Within a live Cockpit task, follow-ups via `cockpit task send` retain the worker's history, so send only the delta. When re-delegating to a fresh worker (new task, `codex exec`, MCP), include the prior attempt and how it failed.
-- Inside Workflow scripts, reach gpt-5.6 through the thin wrapper: `agent(prompt, {agentType: 'codex:codex-rescue'})`. The wrapper forwards to the Codex runtime and the orchestrator is not involved until the work is done. (Codex orchestrators skip the wrapper and spawn Codex workers directly via Cockpit tasks.)
-- Reserve direct `codex exec` via Bash for quick, bounded, foreground checks not worth a Cockpit task.
-- Claude workers get the `model` (and `effort`) parameters on Agent/Workflow calls. Use `effort: 'low'` for mechanical stages, higher tiers only for verify/judge stages. (Agent/Workflow tools exist only in Claude Code sessions; a Codex orchestrator reaches Claude workers via Cockpit tasks with `--agent-type claude` instead.)
+Do not send instructions directly to a Lead's workers. v4.49.0 no longer reparents a task when `task send` is used, but bypassing the Lead still creates conflicting command paths. The Master instructs the Lead; the Lead instructs its workers.
 
-## First Move: Read-Only Grounding
+## Read-only grounding
 
-Before delegating or editing, build a short state packet from the actual current environment. Do this yourself (it shapes every downstream packet) unless the repo is large — then delegate the sweep to a discovery worker and verify its summary against `git status`/`gh` yourself.
+Before delegating or editing, verify what applies:
 
-Check what applies:
+- repository root, branch, remote, latest commit, tracking status, and dirty files
+- project instructions, task/status docs, deploy docs, and test commands
+- current pull requests, issues, CI, deployment, or runtime state when relevant
+- existing user or agent changes that must not be reverted
+- account, production, data, external-message, merge, and deploy boundaries
 
-- Current cwd, repo root, branch, remote, latest commit, tracking status, and dirty files.
-- Whether this session's cwd/branch differs from the user's referenced thread or repo.
-- Project docs: `CLAUDE.md`, `AGENTS.md`, `README.md`, task/status docs, deploy docs, test docs.
-- Open PRs, issues, CI status, deployment status, and recent commits (`gh pr list`, `gh run list`) when relevant.
-- Product/runtime state: local server, public URL, admin/CMS URL, database/source status, or API health when relevant.
-- Existing user/agent changes that must not be reverted.
-- Explicit boundaries: accounts not to use, production data not to touch, no-notify/no-post rules, merge/deploy gates.
+If ambiguity could damage work, ask for the missing constraint. Otherwise proceed with conservative assumptions and record them in the packet.
 
-If the state packet reveals ambiguity that could damage work, pause delegation and ask for the missing constraint. Otherwise proceed with conservative assumptions and record them.
+## Synchronous and asynchronous delegation
 
-## Orchestration Loop
+Choose the command by execution style:
 
-Track every worker as a task via TaskCreate/TaskUpdate so state survives context compaction and the user can see progress. Cockpit workers are already visible tasks in the Cockpit UI; mirror only the orchestration-level state.
+- `cockpit task run ...` creates a task and waits synchronously for its first report. Prefer it when the caller should block for a short result.
+- `cockpit task create ...` starts an asynchronous task. Read `latestReportSeq` with `task get`, then poll using `cockpit task wait <id> --since <seq>`.
+- `cockpit task send <id> --text "..." --wait` sends a follow-up and waits for that turn's report.
+- A `{"timeout": true}` result from `task wait` is normal. Poll again with the last processed sequence.
 
-Heartbeat mechanics:
+Reports are persistent task logs. They do not inject prompts into another task or resume a parent task.
 
-- Background Agent/Workflow completions re-invoke you automatically — that is the primary wake signal. Do not poll for them.
-- Cockpit worker tasks and other external waits (CI runs, deploys, long Codex background jobs) are not harness-tracked: use ScheduleWakeup or Monitor with a cadence matched to how fast that state changes. If the user gave no cadence: ~5 minutes for active multi-agent work, 15–30 minutes for slow CI/deploy waiting.
+## Orchestration loop
 
-Each heartbeat:
+1. Refresh repository and runtime state.
+2. Poll each asynchronous worker with `task wait --since`; use `task get` when conversation context is needed.
+3. Inspect `waitingReason` and send a response only when `readyForNextPrompt` is true.
+4. Classify blockers and decide whether to nudge, stop, reassign, escalate, or wait.
+5. Route completed work to an independent reviewer when the risk requires it.
+6. Return unresolved high-severity findings to implementation with the smallest corrective packet.
+7. When review passes, prepare the next authorized gate and report material state changes.
 
-1. Refresh repo/runtime state read-only.
-2. Check each worker state (`cockpit task list` / `cockpit task get <id>`, TaskList, `gh run list`). For Cockpit workers in `waiting_confirmation`, read `waitingReason` and answer with `cockpit task send <id>` when `readyForNextPrompt` is true.
-3. Classify blockers and decide whether to nudge, stop, reassign, or wait. Two failed attempts by a cheap worker → escalate the model, don't re-send the same packet.
-4. If implementation is complete, send it to a reviewer worker (different model or at least a fresh session — never the implementer reviewing itself).
-5. If review finds P0/P1, route back to implementation with the smallest corrective task, including the reviewer's findings verbatim in the new packet.
-6. If review passes, prepare the next gate: PR, merge decision, deploy decision, post-deploy proof, or final report.
-7. Send a concise status update to the user when material state changes.
+For iterative work against one subsystem, keep one worker task alive and send successive focused rounds. Create a new task for an unrelated workstream.
 
-## Resident Worker Pattern (Iterative Calibration Rounds)
-
-Proven 2026-07-06 on Daifukucho M6 (e-NAVI connector: M6→M6b→M6c→M6d, one worker, four rounds, ~70 tests, all merged same day).
-
-For one milestone-stream against a real external system (scraper calibration, API integration, migration against live data), keep **one Cockpit worker task alive and send successive rounds via `cockpit task send`** instead of creating fresh tasks:
-
-- The worker accumulates codebase knowledge and prior design decisions; each follow-up needs only the delta — no re-onboarding packet, and the whole audit trail lives in one task.
-- The round loop: worker implements with tests → orchestrator reviews the diff AND re-runs tests/tsc/lint independently → orchestrator runs the real-environment E2E the worker cannot reach (authenticated sessions, real data, local DBs) → reality produces new facts (schema drift, format surprises, misclassified errors) → orchestrator distills them into the next round's instruction → repeat until the loop closes end-to-end.
-- Instruction format that worked per round: a `【実測で確定した新事実】` section carrying verbatim observed facts ("field X arrives as number, e.g. 202607", "cell value is '-' for N/A") + numbered MUST DO + MUST NOT. Label rounds (M6b, M6c…) so commits and reports stay traceable.
-- Division of labor: the worker takes subsystem-sized changes with tests; the orchestrator makes tiny calibration edits directly (1-line schema/TDZ fixes) when the round-trip costs more than the change, and owns merges, E2E runs, and one-time DB backfills.
-- Scope rule: same subsystem/milestone → same task; unrelated workstream → new task (parallel, own worktree).
-
-Caveats learned the hard way:
-
-- Worker unit tests cannot catch module-level CLI runtime bugs (e.g. TDZ on a `const` declared after top-level `parseAsync`) nor real-data drift — the orchestrator's live E2E is a mandatory gate before declaring a round done.
-- `idle_timeout` re-reports from the same task are often duplicates of the last report — check the report seq before treating one as new work.
-- A behavior fix that lands mid-stream (e.g. review auto-resolution) does not repair state created before it — plan a one-time backfill as an ops action, not worker code.
-
-## Worker States
-
-- `not_started`: Task is defined but not delegated.
-- `running`: Worker is actively working.
-- `waiting`: Worker waits on CI, auth, human input, external service, or a long-running process.
-- `completed`: Worker returned artifacts, diff, PR, tests, or report.
-- `reviewing`: Reviewer is checking completed work.
-- `needs_fix`: Reviewer found issues that should return to implementation.
-- `needs_human_judgment`: Scope, account, product, legal, data, or merge/deploy judgment needs the user.
-- `failed`: Tooling, environment, permissions, or task design failed.
-- `ready`: No blocking findings remain and the next user/merge/deploy action is clear.
-
-## Task Packet Template
-
-Send workers enough context to succeed without leaking unnecessary history. For Codex workers this packet is the entire shared state — include everything.
+## Task packet template
 
 ```text
 You are a worker for <project>.
@@ -117,113 +77,92 @@ Goal:
 - <one concrete requirement>
 
 Required grounding:
-- Start in/read <repo or cwd>.
-- Confirm repo root, branch, dirty files, and relevant docs before editing.
-- Treat existing user/agent changes as intentional; do not revert unrelated work.
+- Start in <repo or cwd>.
+- Confirm repo root, branch, dirty files, and relevant instructions before editing.
+- Preserve unrelated user and agent changes.
 
 Scope:
-- In scope: <files/features/behavior>
-- Out of scope: <adjacent cleanup, unrelated UI, schema, deploy, data edits>
+- In scope: <files, feature, or behavior>
+- Out of scope: <adjacent cleanup or unrelated work>
 
 Constraints:
-- <account boundaries>
-- <production/data/secret/no-post/no-merge rules>
-- <one PR = one requirement if applicable>
+- <account, production, data, external-message, no-push/no-merge gates>
 
 Implementation:
-- Make the smallest code/docs/config change that satisfies the goal.
+- Make the smallest change that satisfies the goal.
 - Follow existing project patterns.
-- Run relevant focused tests/checks.
+- Run focused checks.
 
 Return:
 - Files changed
-- Commands/tests run and results
-- Screenshots/URLs/logs if relevant
+- Checks and results
+- Evidence
 - Remaining risks or questions
 ```
 
-## Review Packet Template
+For a worker created asynchronously with `task create`, append the completion protocol below after replacing `<PARENT_TASK_ID>`.
 
-Use a separate reviewer when the implementation can affect users, production, shared repos, billing/data, or a visible UI. Default reviewer: fable-5 or opus-4.8; add a gpt-5.6 pass (`codex review` or delegator Code Reviewer) as an extra independent perspective for high-stakes changes.
+## Worker completion protocol
 
 ```text
-You are a reviewer for <project>.
+Completion protocol:
+- The parent task ID is <PARENT_TASK_ID>.
+- Only at the final stage, run the following command exactly once:
+  cockpit task send <PARENT_TASK_ID> --text "WORKER_DONE <your task ID>
+Result: <one line>
+Verification: <one line>
+Next: <none, or one decision needed from the parent>"
+- Do not send this for progress updates, questions, or immediately after resuming.
+- Do not wait for or request an acknowledgement. After sending, write the normal final response and stop.
+- Never resend the same completion notice.
+- If send fails, inspect the parent once with cockpit task get <PARENT_TASK_ID>.
+  If needsResume is true, resume the parent and retry the completion notice once.
+```
+
+Parent behavior after `WORKER_DONE`:
+
+1. Record the worker ID and the three-line summary.
+2. Do not send an acknowledgement back to the worker.
+3. Fetch the full worker report with `task get` or `task wait` when needed. The final report may be appended shortly after the completion notice.
+4. Review the result and report upstream once.
+
+The explicit completion notice is for asynchronous `task create`. It is unnecessary when `task run` or `task send --wait` already returns the report synchronously.
+
+## Review packet template
+
+```text
+You are an independent reviewer for <project>.
 
 Review target:
-- <branch/PR/diff/commit/worktree>
+- <branch, diff, commit, or worktree>
 
 Requirement:
 - <one concrete requirement>
 
 Review stance:
-- Findings first, ordered P0/P1/P2.
-- Verify scope: no unrelated changes, no hidden behavior, no forbidden account/data/deploy actions.
-- Verify tests/evidence match the requirement.
-- For UI: check relevant breakpoints, interactions, layout, copy, and console errors.
-- For backend/data: check validation, migration safety, auth, concurrency, and rollback/recovery.
+- Findings first, ordered by severity.
+- Check scope, hidden behavior, forbidden actions, and evidence.
 - Do not edit, push, merge, deploy, post, or mutate production.
 
 Return:
 - Findings with file/line or evidence
-- Whether P0/P1 remain
+- Whether high-severity findings remain
 - Test gaps or residual risk
-- Merge/deploy/readiness recommendation
+- Readiness recommendation
 ```
 
-## Common Worker Types
+## Safety gates
 
-Choose only the workers needed for the current task. Model defaults per the routing table above.
+Stop and ask when any of these appear:
 
-- **Discovery worker**: read-only repo/product investigation and risk map. → gpt-5.6 read-only or Explore agent.
-- **Implementation worker**: one focused code/content/config change. → gpt-5.6 for well-spec'd work; opus-4.8/fable-5 when taste matters.
-- **QA worker**: browser/app/API regression testing against expected behavior. → gpt-5.6 (computer use strength).
-- **Reviewer worker**: independent code/product review. → fable-5/opus-4.8, optional gpt-5.6 second opinion.
-- **Deploy/proof worker**: post-merge CI/deploy/production verification without repeating unsafe operations. → gpt-5.6 read-only or sonnet-5.
-- **Docs/report worker**: user story, runbook, status sheet, release notes, or orchestrator-style work report. → sonnet-5.
+- wrong or unclear account, organization, workspace, tenant, project, domain, or production target
+- production mutation, billing, publishing, or external messaging not explicitly authorized
+- required secrets or private data are not already configured safely
+- the work cannot remain one requirement without a broad refactor
+- CI, deploy, or migration behavior could damage production
+- destructive Git, restore, rollback, merge, or deploy action exceeds authorization
+- unresolved high-severity review findings
 
-## Safety Gates
+## Completion report
 
-Stop and ask the user, or mark `needs_human_judgment`, when any of these appear:
-
-- Wrong or unclear account, org, workspace, tenant, project, domain, or production target.
-- Production data mutation, billing action, external posting, messaging, emailing, or user notification not explicitly authorized.
-- Secrets, credentials, private data, or admin access are required but not already safely configured.
-- Scope cannot remain one requirement or requires broad refactor.
-- CI/deploy/migration/pipeline behavior is unclear or failing in a way that could damage production.
-- Worker proposes merge, deploy, destructive Git operation, data restore, or rollback beyond authorization.
-- Reviewer finds P0/P1 that have not been fixed and re-reviewed.
-
-## Completion Report
-
-Keep the final report short and operational:
-
-- Current state and branch/PR/deploy URL if relevant.
-- Workers used, their models, and their outcomes.
-- What changed, if anything.
-- Verification performed.
-- Remaining P0/P1/P2 or explicit "no P0/P1 known".
-- Required user decision, if any.
-- Next suggested action only if it materially advances the project.
-
-## Project-Specific Adapter
-
-At the start of each orchestration, write a compact adapter for the project. Include only facts verified in the current session or explicitly supplied by the user.
-
-```text
-Project:
-Repo/cwd:
-Branch/remote:
-Primary URLs:
-Accounts/tenants allowed:
-Accounts/tenants forbidden:
-Production/data mutation policy:
-Merge/deploy policy:
-Known protected work:
-Current requirement:
-Heartbeat cadence:
-Worker plan (type → model → mechanism):
-Review gate:
-Stop conditions:
-```
-
-Use the adapter in every worker/reviewer packet so separate sessions do not accidentally inherit the wrong branch, workspace, account, or product assumptions. For Codex workers, paste the adapter into the packet itself — they cannot see anything outside the prompt.
+Keep the final report operational: current branch or artifact, what changed, checks run, remaining risks, required human decisions, and the single next action if one is useful.

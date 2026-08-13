@@ -8,15 +8,15 @@ AGI Cockpit のマスターエージェント（統括Chief）向けエージェ
 |---|---|
 | [cockpit-master-chief](cockpit-master-chief/SKILL.md) | AGI Cockpit の統括Chiefセッションとしてワーカータスク群を運用する |
 | [project-maintainer-orchestrator](project-maintainer-orchestrator/SKILL.md) | プロジェクトの親メンテナー/オーケストレーターとしてワーカー・レビュアーを統括する |
-| [chief-handover](chief-handover/SKILL.md) | 新Chiefセッションへの引き継ぎ（レーン再同期・report-back先の付け替え） |
+| [chief-handover](chief-handover/SKILL.md) | 新Chiefセッションへの引き継ぎ（レーン再同期・ポーリング監視の継承） |
 | [chief-work-report](chief-work-report/SKILL.md) | 完了した作業をObsidian/team-vaultの報告Markdownに残し、Chiefスレッドへ要約を共有する |
 
 ## ローカル運用
 
-実体はこのリポジトリに置き、`~/.claude/skills/` からシムリンクで参照する:
+実体はこのリポジトリに置き、利用するエージェントのスキルディレクトリからシムリンクで参照する:
 
 ```sh
-ln -s ~/Develop/Agent-Skills/<skill-name> ~/.claude/skills/<skill-name>
+ln -s /path/to/Agent-Skills/<skill-name> ~/.agents/skills/<skill-name>
 ```
 
-Claude Code からは従来どおり `~/.claude/skills/` 配下のスキルとして見える。
+スキルディレクトリは利用環境に合わせて読み替える。
