@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cockpit Ops"
+  short_description: "Coordinate Chief, Lead, review, and handover work"
+  default_prompt: "Use $cockpit-ops to coordinate this work within the current Master AGENTS.md rules."
