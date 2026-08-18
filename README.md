@@ -1,25 +1,17 @@
 # Agent-Skills
 
-AGI Cockpit のマスターエージェント（統括Chief）向けエージェントスキルのリポジトリ。
+AGI Cockpit の Chief / Lead 運用を補助する、薄いエージェントスキル集。
 
-## 更新情報
-
-### 2026-08-13 — Cockpit v4.49.0 対応
-
-v4.49.0 でタスク間の自動通知（report-back）が廃止され、タスク管理が「`task create` → `task wait`（非同期）」と「`task run`（同期）」の2方式に整理されたことに合わせて、全スキルを更新しました。
-
-- **子タスクの完了報告をルール化**: 完了が親に自動通知されなくなったため、「ワーカーは作業が終わったら親のLeadに1回だけ報告メッセージを送って終わる」規約を起票テンプレートに組み込み（`WORKER_DONE` 形式）
-- **監視はポーリングに一本化**: `task wait --since` / `task run` の使い分けを明記。旧 `--report-back` オプション前提の記述を全削除
-- **Leadタスクのトップレベル起票**: エージェントからでも親なし（子タスクにならない）でタスクを作る手順を追記（v4.49.0時点の回避策）
+Cockpit Master の `AGENTS.md` と現在の CLI ヘルプを実行時仕様の正本とします。このリポジトリは、変化しやすいコマンド一覧や状態遷移を複製せず、役割分担・委譲・レビュー・引き継ぎ・報告の判断だけを扱います。
 
 ## 収録スキル
 
 | スキル | 概要 |
 |---|---|
-| [cockpit-master-chief](cockpit-master-chief/SKILL.md) | AGI Cockpit の統括Chiefセッションとしてワーカータスク群を運用する |
-| [project-maintainer-orchestrator](project-maintainer-orchestrator/SKILL.md) | プロジェクトの親メンテナー/オーケストレーターとしてワーカー・レビュアーを統括する |
-| [chief-handover](chief-handover/SKILL.md) | 新Chiefセッションへの引き継ぎ（レーン再同期・ポーリング監視の継承） |
-| [chief-work-report](chief-work-report/SKILL.md) | 完了した作業をObsidian/team-vaultの報告Markdownに残し、Chiefスレッドへ要約を共有する |
+| [cockpit-ops](cockpit-ops/SKILL.md) | Chief / Lead / Worker の責任分界、委譲、レビュー、Chief交代を統合する |
+| [chief-work-report](chief-work-report/SKILL.md) | 完了した作業をObsidian/team-vaultの報告Markdownに残し、Chiefタスクへ要約を共有する |
+
+旧 `cockpit-master-chief`、`project-maintainer-orchestrator`、`chief-handover` は `cockpit-ops` に統合しました。既存のシムリンクを使っている場合は、旧3件を外して `cockpit-ops` へのリンクを作り直してください。
 
 ## ローカル運用
 
