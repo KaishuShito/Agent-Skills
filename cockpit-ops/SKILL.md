@@ -13,9 +13,30 @@ Use the Cockpit Master `AGENTS.md` and the installed CLI help as the authority f
 |---|---|---|
 | Master Chief | Priorities, Lead creation, cross-project gates, consolidated decisions | Delegates routine implementation |
 | Project Lead | One workstream, worker packets, review, readiness | Does not create sibling Leads or bypass approval gates |
+| Project Advisor | Independent critique, taste, risk discovery, and alternative framing | Does not own orchestration, implementation, or final readiness |
 | Worker | One concrete requirement and its evidence | Does not broaden scope or self-approve |
 
 Keep one command path: the Master directs Leads; Leads direct their workers. Use a one-shot worker instead of a persistent Lead when the work has one bounded outcome.
+
+## Default model roles
+
+- Use **GPT-5.6 Sol as the default Project Lead**. Sol owns project state, task decomposition, implementation decisions, verification, integration, and the final report. Use high effort for important or ambiguous projects unless a lower level is clearly sufficient.
+- Use **Fable 5 as a Project Advisor by default, not as the Project Lead**. Give it bounded review, critique, taste, copy, product judgment, premortem, or alternative-framing work. The Sol Lead receives its findings, checks them against evidence, and decides what to adopt.
+- Put a Fable Advisor under the Sol Lead when task nesting is available. Do not pin it as a competing top-level Lead. If an already-running Fable task must be reused, rename it `〈emoji〉 〈project〉｜Advisor`, unpin it, narrow its authority, and direct its findings to the Sol Lead.
+- Use Luna for bounded read-only research, lightweight monitoring, extraction, and mechanical work. Do not delegate important implementation, deployment, operational judgment, or final verification to Luna; keep those with Sol.
+- Override these defaults only when Kai explicitly requests another model-role assignment or when Sol is unavailable and the user accepts the fallback. State the exception in the task packet.
+
+## Name persistent Leads for scanning
+
+Use `〈stable project emoji〉 〈short project name〉｜Lead` for pinned, persistent top-level Leads. The name should remain recognizable on a narrow task list.
+
+- Assign one stable emoji to the project, not to its temporary status. Reuse it for successor Leads in the same lane.
+- Keep the project name short. Omit model names, agent providers, version suffixes, and words such as `migrated` when the task metadata already carries that information.
+- When two generations must remain pinned, name the superseded one `〈emoji〉 〈project〉｜旧Lead`; give the active one the ordinary `｜Lead` name.
+- Workers and one-shot tasks do not need this format. Their parent grouping already supplies context.
+- Prefer a specific mnemonic over a generic category when it improves scanning, for example `🎨 Paint with Code｜Lead`, `📡 Model Radar｜Lead`, or `🌊 doubleBlue｜Lead`.
+
+Before renaming existing tasks, list pinned tasks and verify task ID, top-level placement, and project identity. Renaming does not authorize unpinning, completing, or removing tasks.
 
 ## Ground before delegating
 
